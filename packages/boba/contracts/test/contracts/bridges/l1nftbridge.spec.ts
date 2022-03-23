@@ -8,9 +8,20 @@ let L1NFTBridge: Contract
 let L2NFTBridge: Contract
 let L1CrossDomainMessenger: Contract
 let L1StandardERC721: Contract
+let L2StandardERC721: Contract
 let ERC721: Contract
 const deployNFT = async (name, symbol): Promise<Contract> => {
   return (await ethers.getContractFactory('ERC721')).deploy(name, symbol)
+}
+// eslint-disable-next-line prettier/prettier
+const deployL2StandardERC721 = async (l2Bridge, l1Contract, name, symbol, baseTokenUri): Promise<Contract> => {
+  // eslint-disable-next-line prettier/prettier
+  return (await ethers.getContractFactory('L2StandardERC721')).deploy(l2Bridge, l1Contract, name, symbol, baseTokenUri)
+}
+// eslint-disable-next-line prettier/prettier
+const deployL1StandardERC721 = async (l1Bridge, l2Contract, name, symbol, baseTokenUri): Promise<Contract> => {
+  // eslint-disable-next-line prettier/prettier
+  return (await ethers.getContractFactory('L1StandardERC721')).deploy(l1Bridge, l2Contract, name, symbol, baseTokenUri)
 }
 const deployL1NFTBridge = async (): Promise<Contract> => {
   return (await ethers.getContractFactory('L1NFTBridge')).deploy()
@@ -114,6 +125,20 @@ describe('L1NFTBridge Tests', () => {
       L2NFTBridge = await deployL2NFTBridge()
       L1CrossDomainMessenger = await deployL1CrossDomainMessenger()
       ERC721 = await deployNFT('name', 'symbol')
+      L2StandardERC721 = await deployL2StandardERC721(
+        L2NFTBridge.address,
+        ERC721.address,
+        'name',
+        'symbol',
+        'baseTokenUri'
+      )
+      L1StandardERC721 = await deployL1StandardERC721(
+        L1NFTBridge.address,
+        ERC721.address,
+        'name',
+        'symbol',
+        'baseTokenUri'
+      )
       await L1NFTBridge.initialize(
         L1CrossDomainMessenger.address,
         L2NFTBridge.address
@@ -121,17 +146,41 @@ describe('L1NFTBridge Tests', () => {
     })
     it('can register a NFT with L1 creation', async () => {
       const l1 = 0
-      await L1NFTBridge.registerNFTPair(ERC721.address, ERC721.address, 'L1')
+      await L1NFTBridge.registerNFTPair(
+        ERC721.address,
+        L2StandardERC721.address,
+        'L1'
+      )
       const pairNFTInfo = await L1NFTBridge.pairNFTInfo(ERC721.address)
       expect(pairNFTInfo.l1Contract).eq(ERC721.address)
-      expect(pairNFTInfo.l2Contract).eq(ERC721.address)
+      expect(pairNFTInfo.l2Contract).eq(L2StandardERC721.address)
       expect(pairNFTInfo.baseNetwork).eq(l1)
+    })
+    it('can not register a NFT twice', async () => {
+      await L1NFTBridge.registerNFTPair(
+        ERC721.address,
+        L2StandardERC721.address,
+        'L1'
+      )
+      await expect(
+        L1NFTBridge.registerNFTPair(
+          ERC721.address,
+          L2StandardERC721.address,
+          'L1'
+        )
+      ).to.be.revertedWith('L2 NFT address already registered')
     })
     it('can register a NFT with L2 creation', async () => {
       const l2 = 1
-      await L1NFTBridge.registerNFTPair(ERC721.address, ERC721.address, 'L2')
-      const pairNFTInfo = await L1NFTBridge.pairNFTInfo(ERC721.address)
-      expect(pairNFTInfo.l1Contract).eq(ERC721.address)
+      await L1NFTBridge.registerNFTPair(
+        L1StandardERC721.address,
+        ERC721.address,
+        'L2'
+      )
+      const pairNFTInfo = await L1NFTBridge.pairNFTInfo(
+        L1StandardERC721.address
+      )
+      expect(pairNFTInfo.l1Contract).eq(L1StandardERC721.address)
       expect(pairNFTInfo.l2Contract).eq(ERC721.address)
       expect(pairNFTInfo.baseNetwork).eq(l2)
     })
