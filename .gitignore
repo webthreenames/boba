@@ -11,7 +11,10 @@ coverage.json
 dist
 artifacts
 cache
+
+# nix
 result
+.direnv/
 
 l2geth/build/bin
 packages/contracts/deployments/custom
