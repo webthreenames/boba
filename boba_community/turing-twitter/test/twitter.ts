@@ -206,12 +206,12 @@ describe('Verify Twitter post for testnet funds', function () {
       gasOverride
     )
     const types = {
-      EIP712Domain: [
+      /*EIP712Domain: [
         { name: 'name', type: 'string' },
         { name: 'version', type: 'string' },
         { name: 'chainId', type: 'uint256' },
         { name: 'verifyingContract', type: 'address' },
-      ],
+      ],*/
       ForwardRequest: [
         { name: 'from', type: 'address' },
         { name: 'to', type: 'address' },
@@ -241,14 +241,20 @@ describe('Verify Twitter post for testnet funds', function () {
       verifyingContract: twitterMeta.address,
       chainId,
     }
-    // const signature = await deployerWallet._signTypedData(domain, types, value)
-    const signature = signTypedData({
+    const signatureFull = await deployerWallet._signTypedData(domain, types, value)
+    const signature = ethers.utils.keccak256(signatureFull)
+    const r = signature.slice(0, 66)
+    const s = '0x' + signature.slice(66, 130)
+    const v = parseInt(signature.slice(130, 132), 16)
+
+    console.log("########## SIGNATURE CREATED: ", signature, r, s, v)
+    /*const signature = signTypedData({
       privateKey: ethers.utils.arrayify(deployerPK) as any, // deployerPK,
       data: { primaryType: 'ForwardRequest', types, domain, message: value },
       version: SignTypedDataVersion.V4,
-    })
+    })*/
 
-    const originalSigner = await twitterMeta.verifyTEST(
+    /*const originalSigner = await twitterMeta.verifyTEST(
       value,
       signature,
       gasOverride
@@ -259,10 +265,17 @@ describe('Verify Twitter post for testnet funds', function () {
       value,
       signature
     )
-    console.log('SIGG', signature, originalSigner, verifiedData)
+    console.log('SIGG', signature, originalSigner, verifiedData)*/
 
     console.log('Executing meta tx: ', signature, value)
-    const execTx = await twitterMeta.execute(value, signature, gasOverride)
+    const execTx = await twitterMeta.execute(
+      value,
+      signature,
+      v,
+      r,
+      s,
+      gasOverride
+    )
     const res = await execTx.wait()
 
     /*await twitter.estimateGas.sendFunds(tweetId, gasOverride)
