@@ -19,13 +19,6 @@
       url = "github:nlewo/nix2container";
       inputs.flake-utils.follows = "flake-utils";
     };
-    hardhat = {
-      url = "github:tgunnoe/hardhat-flake";
-    };
-    dotenv = {
-      url = "github:tgunnoe/dotenv-flake";
-      inputs.dream2nix.follows = "dream2nix";
-    };
   };
 
   outputs = {
@@ -35,8 +28,6 @@
     flake-utils,
     devshell,
     nix2container,
-    hardhat,
-    dotenv,
   } @inp:
     let
       lib = nixpkgs.lib;
@@ -106,7 +97,11 @@
           config.projectRoot = ./. ;
           #config.packagesDir = ./nix/packages;
           config.overridesDirs = [ ./nix/overrides ];
-          source =  ./.;
+          source =  builtins.path {
+            name = "boba-monorepo";
+            path = ./.;
+            filter = path: _: baseNameOf path != "turing-start";
+          };
           settings = [
             {
               #subsystemInfo.noDev = true;
