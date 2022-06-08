@@ -73,16 +73,24 @@ rec {
       ln -s ${fraud-detector} $out/
     '';
   };
-  dtl = buildImage {
+  dtl = let
+    dtlVar = pkgs.runCommand "dtl-var" {} ''
+      mkdir -p $out/opt/optimism/packages/data-transport-layer/state-dumps
+    '';
+  in buildImage {
     name = "dtl";
     tag = tag;
     maxLayers = 125;
     contents = with pkgs; [
-      curl
-      bash
-      jq
+      (pkgs.symlinkJoin {
+        name = "root"; paths = [
+          pkgs.bashInteractive
+          pkgs.coreutils
+        ]; })
+      #dtlVar
     ];
     config = {
+      Env = [ "PATH=/bin/" ];
       WorkingDir = "${bobapkgs.dtl-min}/";
       EntryPoint = [
         "${pkgs.nodejs}/bin/node"
@@ -91,24 +99,31 @@ rec {
     };
   };
 
-  deployer =
-    let
-      optimism-contracts = bobapkgs.contracts-min;
-    in buildImage {
-      name = "deployer";
-      tag = tag;
-      config = {
-        env = [ "PATH=${optimism-contracts}/bin/:${scripts}/scripts/:${pkgs.yarn}/bin/" ];
-        workingdir = "${optimism-contracts}/";
-        entrypoint = [
-          "${pkgs.yarn}/bin/yarn"
-          "--cwd"
-          "${optimism-contracts}/"
-          "run"
-          "deploy"
-        ];
-      };
+  deployer = let
+    #optimism-contracts = bobapkgs."@eth-optimism/contracts";
+    optimism-contracts = bobapkgs.contracts-min;
+  in buildImage {
+    name = "deployer";
+    tag = tag;
+    contents = with pkgs; [
+      (pkgs.symlinkJoin {
+        name = "root"; paths = [
+          pkgs.bashInteractive
+          pkgs.coreutils
+        ]; })
+    ];
+    config = {
+      Env = [ "PATH=/bin/:${optimism-contracts}/bin/:${optimism-contracts}/node_modules/.bin/:${scripts}/scripts/:${pkgs.yarn}/bin/" ];
+      WorkingDir = "${optimism-contracts}/contracts";
+      Entrypoint = [
+        "${pkgs.yarn}/bin/yarn"
+        "--cwd"
+        "${optimism-contracts}/contracts"
+        "run"
+        "deploy"
+      ];
     };
+  };
   boba-deployer =
     let
       boba-contracts = bobapkgs.boba-contracts-min;
@@ -116,7 +131,7 @@ rec {
       name = "boba_deployer";
       tag = tag;
       config = {
-        Env = [ "PATH=${boba-contracts}/bin/:${scripts}/scripts/" ];
+        Env = [ "PATH=${boba-contracts}/bin/:${boba-contracts}/node_modules/.bin/:${scripts}/scripts/" ];
         WorkingDir = "${boba-contracts}/";
         Entrypoint = [
           "${scripts}/scripts/wait-for-l1-and-l2.sh"
@@ -158,41 +173,45 @@ rec {
   };
 
   # Adapted from ops/docker/Dockerfile.geth
-  l2geth =
-    let
-      script = pkgs.stdenv.mkDerivation {
-        name = "geth.sh";
-        phases = [ "installPhase" ];
-        installPhase = ''
-          mkdir -p $out/scripts
-          cp ${./../.}/ops/scripts/geth.sh $out/scripts/
-          substituteInPlace $out/scripts/geth.sh --replace \
-            'curl' '${pkgs.curl}/bin/curl'
+  l2geth = let
+    script = pkgs.stdenv.mkDerivation {
+      name = "geth.sh";
+      phases = [ "installPhase" ];
+      installPhase = ''
+        mkdir -p $out/scripts
+        cp ${./../.}/ops/scripts/geth.sh $out/scripts/
+        substituteInPlace $out/scripts/geth.sh --replace \
+          'curl' '${pkgs.curl}/bin/curl'
         '';
-      };
-    in buildImage {
-      name = "l2geth";
-      tag = tag;
-      contents = with pkgs; [
-        # From nixpkgs
-        cacert
-        jq
-      ];
-      config = {
-        ExposedPorts = {
-          "8545" = {};
-          "8546" = {};
-          "8547" = {};
-        };
-        WorkingDir = "${script}/scripts/";
-        Env = [
-          "PATH=${bobapkgs."@eth-optimism/l2geth".geth}/bin/"
-        ];
-        EntryPoint = [
-          "geth"
-        ];
-      };
     };
+  in buildImage {
+    name = "l2geth";
+    tag = tag;
+    contents = [
+      # From nixpkgs
+      (pkgs.symlinkJoin {
+        name = "root"; paths = [
+          pkgs.bashInteractive
+          pkgs.coreutils
+          pkgs.cacert
+          pkgs.jq
+        ]; })
+    ];
+    config = {
+      ExposedPorts = {
+        "8545" = {};
+        "8546" = {};
+        "8547" = {};
+      };
+      WorkingDir = "${script}/scripts/";
+      Env = [
+        "PATH=/bin:${bobapkgs."@eth-optimism/l2geth".geth}/bin/:${script}/scripts/"
+      ];
+      EntryPoint = [
+        "geth"
+      ];
+    };
+  };
   hardhat = buildImage {
     name = "l1_chain";
     tag = tag;
@@ -277,9 +296,10 @@ rec {
         '';
       };
 
-    in buildImage {
+    in pkgs.dockerTools.buildLayeredImage {
       name = "integration-tests";
       tag = tag;
+      maxLayers = 125;
       config = {
         WorkingDir = "${bobapkgs.integration-tests-min}/";
         Env = [

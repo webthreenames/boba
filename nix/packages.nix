@@ -201,16 +201,25 @@ rec {
         . $stdenv/setup
 
         mkdir -p $out/
-        cp -r ${bobapkgs."@eth-optimism/contracts"}/contracts/{artifacts,deployments,dist,contracts,package.json,hardhat.config.ts} $out/
-
-        mkdir -p $out/node_modules/@eth-optimism/
-        ln -s ${coreutils-min} $out/node_modules/@eth-optimism/core-utils
-
+        cp -r ${bobapkgs."@eth-optimism/contracts"}/contracts/{artifacts,bin,deployments,dist,contracts,package.json,hardhat.config.ts,test,tasks,src,tsconfig*} $out/
+        mkdir -p $out/node_modules/{@eth-optimism,@boba,.bin}
         mkdir -p $out/node_modules/@ethersproject/
         cp -r ${bobapkgs."@eth-optimism/contracts"}/contracts/node_modules/@ethersproject/{abstract-provider,abstract-signer} $out/node_modules/@ethersproject/
         cp -r ${bobapkgs."@eth-optimism/contracts"}/contracts/node_modules/ethers \
           $out/node_modules/
 
+        cp -r ${bobapkgs."@eth-optimism/contracts"}/contracts/node_modules/{ts-node,typescript,directory-tree,dotenv,hardhat,hardhat-deploy,@typechain,hardhat-gas-reporter,solidity-coverage,ethereum-waffle} \
+          $out/node_modules/
+        cp -r ${bobapkgs."@eth-optimism/contracts"}/contracts/node_modules/@types \
+          $out/node_modules/
+
+        # ${pkgs.rsync}/bin/rsync -av ${bobapkgs."@eth-optimism/contracts"}/contracts/node_modules/ $out/node_modules/ \
+        #   --exclude={'@boba','@eth-optimism'}
+
+        ln -s ${coreutils-min} $out/node_modules/@eth-optimism/core-utils
+        ln -s ${turing-min} $out/node_modules/@boba/turing-hybrid-compute
+
+        ln -s $out/node_modules/ts-node/dist/bin.js $out/node_modules/.bin/ts-node
       '';
     };
   };
@@ -243,6 +252,7 @@ rec {
         cp -r ${bobapkgs."@eth-optimism/data-transport-layer"}/dtl/dist/src $out/dist/src
         cp  ${bobapkgs."@eth-optimism/data-transport-layer"}/dtl/package.json $out/
 
+        mkdir -p $out/state-dumps
       '';
     };
   };
@@ -439,31 +449,31 @@ rec {
         ln -s ${turing-min} $out/node_modules/@boba/turing
         ln -s ${bobapkgs."@boba/api"} $out/node_modules/@boba/api
 
-        cp -r ${bobapkgs."@eth-optimism/integration-tests"}/monitor/node_modules/@ethersproject/{transactions,abstract-provider,providers} \
+        cp -r ${bobapkgs."@eth-optimism/integration-tests"}/integration-tests/node_modules/@ethersproject/{transactions,abstract-provider,providers} \
           $out/node_modules/@ethersproject/
 
-        cp -r ${bobapkgs."@eth-optimism/integration-tests"}/monitor/node_modules/@nomiclabs/{hardhat-ethers,hardhat-waffle} \
+        cp -r ${bobapkgs."@eth-optimism/integration-tests"}/integration-tests/node_modules/@nomiclabs/{hardhat-ethers,hardhat-waffle} \
           $out/node_modules/@nomiclabs/
 
-        cp -r ${bobapkgs."@eth-optimism/integration-tests"}/monitor/node_modules/@openzeppelin/{contracts,test-helpers} \
+        cp -r ${bobapkgs."@eth-optimism/integration-tests"}/integration-tests/node_modules/@openzeppelin/{contracts,test-helpers} \
           $out/node_modules/@openzeppelin/
 
-        cp -r ${bobapkgs."@eth-optimism/integration-tests"}/monitor/node_modules/@types/{chai,chai-as-promised,mocha} \
+        cp -r ${bobapkgs."@eth-optimism/integration-tests"}/integration-tests/node_modules/@types/{chai,chai-as-promised,mocha} \
           $out/node_modules/@types/
 
-        cp -r ${bobapkgs."@eth-optimism/integration-tests"}/monitor/node_modules/@typescript-eslint/{eslint-plugin,parser} \
+        cp -r ${bobapkgs."@eth-optimism/integration-tests"}/integration-tests/node_modules/@typescript-eslint/{eslint-plugin,parser} \
           $out/node_modules/@typescript-eslint/
 
-        cp -r ${bobapkgs."@eth-optimism/integration-tests"}/monitor/node_modules/@uniswap/{v3-core,v3-periphery,v3-sdk} \
+        cp -r ${bobapkgs."@eth-optimism/integration-tests"}/integration-tests/node_modules/@uniswap/{v3-core,v3-periphery,v3-sdk} \
           $out/node_modules/@uniswap/
 
-        cp -r ${bobapkgs."@eth-optimism/integration-tests"}/monitor/node_modules/{async-mutex,babel-eslint,chai,chai-as,promised,commander,dotenv,envalid,eslint,eslint-config-prettier,eslint-plugin-import,eslint-plugin-jsdoc,eslint-plugin-prefer-arrow,eslint-plugin-prettier,eslint-plugin-react,eslint-plugin-unicorn,ethereum-waffle,ethers,hardhat,hardhat-gas-reporter,rimraf,prom-client,eth-sig-util,mocha} \
+        cp -r ${bobapkgs."@eth-optimism/integration-tests"}/integration-tests/node_modules/{async-mutex,babel-eslint,chai,chai-as-promised,commander,dotenv,envalid,eslint,eslint-config-prettier,eslint-plugin-import,eslint-plugin-jsdoc,eslint-plugin-prefer-arrow,eslint-plugin-prettier,eslint-plugin-react,eslint-plugin-unicorn,ethereum-waffle,ethers,hardhat,hardhat-gas-reporter,rimraf,prom-client,eth-sig-util,mocha} \
           $out/node_modules/
 
-        cp -r ${bobapkgs."@eth-optimism/integration-tests"}/monitor/node_modules/{chalk,request-promise-native} \
+        cp -r ${bobapkgs."@eth-optimism/integration-tests"}/integration-tests/node_modules/{chalk,request-promise-native} \
           $out/node_modules/
 
-        cp -r ${bobapkgs."@boba/monitor"}/monitor/{package.json,artifacts,contracts,hardhat.config.ts} \
+        cp -r ${bobapkgs."@eth-optimism/integration-tests"}/integration-tests/{package.json,artifacts,contracts,hardhat.config.ts} \
           $out/
       '';
     };

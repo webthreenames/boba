@@ -200,7 +200,7 @@ in
     cleanup-dir = {
       postFixup = ''
         rm -r `ls -A $out/lib/node_modules/@eth-optimism/contracts/ | \
-          grep -v "deployments\|dist\|artifacts\|package.json\|node_modules\|contracts\|hardhat.config.ts\|tsconfig\|cache\|bin"`
+          grep -v "deployments\|dist\|artifacts\|package.json\|node_modules\|contracts\|hardhat.config.ts\|tsconfig\|cache\|bin\|test\|tasks\|src"`
       '';
     };
     # ts-node needed for runtime
@@ -308,6 +308,11 @@ in
           '"extends": "../tsconfig.json"' \
           '"extends": "./tsconfig-copy.json"'
         cp ${tsconfig-build} ./tsconfig-copy.json
+      '';
+    };
+    install-symlinks = {
+      postInstall = ''
+        ln -s $out/lib/node_modules/@eth-optimism/integration-tests/ $out/integration-tests
       '';
     };
   };
@@ -491,6 +496,70 @@ in
   #   };
   # };
 
+  # Prune uuid from outputs
+  # "web3" = {
+  #   stop = {
+  #     postFixup = ''
+  #     if [ -h "$out/lib/node_modules/web3/node_modules/uuid" ];
+  #     then
+  #       rm  $out/lib/node_modules/web3/node_modules/uuid
+  #     fi
+  #     '';
+  #   };
+  # };
+  # "hardhat-gas-reporter" = {
+  #   stop = {
+  #     postFixup = ''
+  #       rm  $out/lib/node_modules/hardhat-gas-reporter/node_modules/uuid
+  #     '';
+  #   };
+  # };
+  # "solidity-coverage" = {
+  #   stop = {
+  #     postFixup = ''
+  #       rm  $out/lib/node_modules/solidity-coverage/node_modules/uuid
+  #     '';
+  #   };
+  # };
+  # "ethereum-waffle" = {
+  #   stop = {
+  #     postFixup = ''
+  #       rm  $out/lib/node_modules/ethereum-waffle/node_modules/uuid
+  #     '';
+  #   };
+  # };
+  # "ethereumjs-wallet" = {
+  #   stop = {
+  #     postFixup = ''
+  #       rm  $out/lib/node_modules/ethereumjs-wallet/node_modules/uuid
+  #     '';
+  #   };
+  # };
+  # "@ethereum-waffle/chai" = {
+  #   stop = {
+  #     postFixup = ''
+  #       rm  $out/lib/node_modules/@ethereum-waffle/chai/node_modules/uuid
+  #     '';
+  #   };
+  # };
+  # "web3-eth" = {
+  #   stop = {
+  #     _condition = satisfiesSemver "^1.5.3";
+  #     postFixup = ''
+  #     if [ -h "$out/lib/node_modules/web3-eth/node_modules/uuid" ];
+  #     then
+  #       rm  $out/lib/node_modules/web3-eth/node_modules/uuid
+  #     fi
+  #     '';
+  #   };
+  # };
+  # "web3-eth-accounts" = {
+  #   stop = {
+  #     postFixup = ''
+  #       rm  $out/lib/node_modules/web3-eth-accounts/node_modules/uuid
+  #     '';
+  #   };
+  # };
   optimism = {
     inherit add-solc;
     add-inputs = {

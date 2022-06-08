@@ -322,7 +322,7 @@ services:
     image: l2geth:nix
     deploy:
       replicas: 1
-    entrypoint: ./geth.sh
+    entrypoint: geth.sh
     env_file:
       - ../ops/envs/geth.env
     environment:
@@ -352,7 +352,7 @@ services:
     image: l2geth:nix
     deploy:
       replicas: 1
-    entrypoint: ./geth.sh
+    entrypoint: geth.sh
     env_file:
       - ../ops/envs/geth.env
     environment:
