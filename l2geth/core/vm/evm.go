@@ -115,6 +115,8 @@ type Context struct {
 	Sequencer   bool
 }
 
+const turingMaxLen = 2050 // Maximum allowed length of hex-encoded response
+
 // EVM is the Ethereum Virtual Machine base object and provides
 // the necessary tools to run a contract on the given state with
 // the provided context. It should be noted that any error
@@ -473,8 +475,8 @@ func (evm *EVM) bobaTuringCall(input []byte, caller common.Address, mayBlock boo
 			retError[35] = 13 // Client Error
 			return retError, 13
 		}
-		if len(responseStringEnc) > 322 {
-			log.Error("TURING bobaTuringCall:Raw response too long (> 322)", "length", len(responseStringEnc), "responseStringEnc", responseStringEnc)
+		if len(responseStringEnc) > turingMaxLen {
+			log.Error("TURING bobaTuringCall:Raw response too long", "limit", turingMaxLen, "length", len(responseStringEnc), "responseStringEnc", responseStringEnc)
 			retError[35] = 17 // Raw Response too long
 			return retError, 17
 		}
@@ -484,27 +486,13 @@ func (evm *EVM) bobaTuringCall(input []byte, caller common.Address, mayBlock boo
 			retError[35] = 14 // Client Response Decode Error
 			return retError, 14
 		}
-		// if we get back, for example,
-		// 0x
-		// 0000000000000000000000000000000000000000000000000000000000000040
-		// 0000000000000000000000000000000000000000000000000000000000418b95
-		// 0000000000000000000000000000000000000000000000000000017e60d3b45f
-		// this leads to len(responseString) of 3*32 = 96
-		// let's cap the byte payload at 32 + 4*32 = 160 - this allows encoding of 4 uint256
-		// Security perspective - we locally construct the revised calldata, EXCEPT the last field
-		// the `bytes memory _payload`, which is limited to 160 bytes max
-		// Garbage-in scenario: Assuming the payload is filled with garbage, this will break downstream
-		// abi.decode(encResponse,(uint256))'s for example, but that's a problem at the contract level not at the Geth level
-		// DDOS scenario: Assuming the payload is filled with lots of garbage, this will burn ETH
-		// reflecting the cost of storing junk on L1.
-		// Evil-in scenario: Assume a long / specially crafted payload is returned from the external API
-		// In this attack, the idea would be to break client.Call as it is trying to pack the response into &responseStringEnc
-		// Alternatively, could attack hexutil.Decode
-		if len(responseString) > 160 {
-			log.Error("TURING bobaTuringCall:Response too big (> 160 bytes)", "length", len(responseString), "responseString", responseString)
-			retError[35] = 18 // Response too big
-			return retError, 18
-		}
+                // Removed the "retError 18: Response too big" check. It's redundant
+                // as we have already checked and decoded the hex-encoded representation.
+                // Adjust the "turingMaxLen" constant as needed. The main rationale for a
+                // length limit is that we (system operator) must pay to store the calldata
+                // into L1 so an excessively large response might not be covered by the 
+                // fees charged to the user.
+
 		t := time.Now()
 		elapsed := t.Sub(startT)
 		log.Debug("TURING API response time", "elapsed", elapsed)
