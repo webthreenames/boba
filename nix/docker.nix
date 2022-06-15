@@ -2,6 +2,7 @@
 let
   tag = "nix";
   buildImage = nix2containerPkgs.nix2container.buildImage;
+<<<<<<< HEAD
   wait-for-l1-and-l2-script = builtins.path {
     name = "wait-for-l1-and-l2.sh";
     path = ../ops/scripts/wait-for-l1-and-l2.sh;
@@ -10,13 +11,19 @@ let
     name = "deployer.sh";
     path = ../ops/scripts/deployer.sh;
   };
+=======
+>>>>>>> 7ffe1c836b286075666fc9177cdde4224348b250
   wait-script = pkgs.stdenv.mkDerivation {
     name = "scripts";
     phases = [ "installPhase" ];
     installPhase = ''
       mkdir -p $out/scripts
       chmod +x $out/scripts
+<<<<<<< HEAD
       cp ${wait-for-l1-and-l2-script} $out/scripts/wait-for-l1-and-l2.sh
+=======
+      cp ${./..}/ops/scripts/wait-for-l1-and-l2.sh $out/scripts/
+>>>>>>> 7ffe1c836b286075666fc9177cdde4224348b250
       substituteInPlace $out/scripts/wait-for-l1-and-l2.sh \
         --replace '/bin/bash' '${pkgs.bash}/bin/bash' \
         --replace 'curl' '${pkgs.curl}/bin/curl' \
@@ -29,8 +36,13 @@ let
     installPhase = ''
       mkdir -p $out/scripts
       chmod +x $out/scripts
+<<<<<<< HEAD
       cp ${deployer-script} $out/scripts/deployer.sh
       cp ${wait-for-l1-and-l2-script} $out/scripts/wait-for-l1-and-l2.sh
+=======
+      cp ${./..}/ops/scripts/deployer.sh $out/scripts/
+      cp ${./..}/ops/scripts/wait-for-l1-and-l2.sh $out/scripts/
+>>>>>>> 7ffe1c836b286075666fc9177cdde4224348b250
       substituteInPlace $out/scripts/deployer.sh \
         --replace '/bin/bash' '${pkgs.bash}/bin/bash' \
         --replace 'curl' '${pkgs.curl}/bin/curl'

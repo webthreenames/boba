@@ -152,7 +152,6 @@
             "@ethersproject/hardware-wallets"."5.5.0" = [
               [ "node-hid" "2.1.1" ]
             ];
-
             # needed for noDev
             # "@eth-optimism/contracts"."0.5.11"  = [
             #   [ "typescript" "4.5.5" ]
