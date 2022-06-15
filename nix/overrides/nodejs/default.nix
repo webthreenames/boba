@@ -209,7 +209,7 @@ in
         mkdir -p $out/bin
         ln -s $out/lib/node_modules/@eth-optimism/contracts $out/contracts
         ln -s $out/contracts/node_modules/ts-node/dist/bin.js $out/bin/ts-node
-        rm $out/contracts/node_modules/node-hid
+        # rm $out/contracts/node_modules/node-hid
         rm -rf $out/contracts/node_modules/@ledgerhq
         rm $out/contracts/node_modules/usb
       '';
@@ -252,7 +252,7 @@ in
     inherit correct-tsconfig-path;
     cleanup-dir = {
       postFixup = ''
-        rm -r `ls -A $out/lib/node_modules/@eth-optimism/sdk/ | grep -v "package.json\|dist\|node_modules"`
+        rm -r `ls -A $out/lib/node_modules/@eth-optimism/sdk/ | grep -v "package.json\|dist\|node_modules\|src\|tsconfig"`
       '';
     };
     minimize = {
@@ -560,6 +560,31 @@ in
   #     '';
   #   };
   # };
+  "@ledgerhq/hw-transport-node-hid" = {
+    stop = {
+      postFixup = ''
+        rm  $out/lib/node_modules/@ledgerhq/hw-transport-node-hid/node_modules/node-hid
+      '';
+    };
+  };
+  "@ledgerhq/hw-transport-node-hid-noevents" = {
+    stop = {
+      postFixup = ''
+        rm  $out/lib/node_modules/@ledgerhq/hw-transport-node-hid-noevents/node_modules/node-hid
+      '';
+    };
+  };
+
+  "@ethersproject/hardware-wallets" = {
+    stop = {
+      postFixup = ''
+        if [ -h "$out/lib/node_modules/@ethersproject/hardware-wallets/node_modules/node-hid" ];
+        then
+          rm  $out/lib/node_modules/@ethersproject/hardware-wallets/node_modules/node-hid
+        fi
+      '';
+    };
+  };
   optimism = {
     inherit add-solc;
     add-inputs = {
@@ -571,6 +596,6 @@ in
   };
   usb.build = {
     buildInputs = with pkgs; [ udev python3 ];
-    nativeBuildInputs = with pkgs; [ jq nodePackages.npm nodejs ];
+    nativeBuildInputs = with pkgs; [ jq nodePackages.npm nodejs-14_x ];
   };
 }

@@ -2,13 +2,21 @@
 let
   tag = "nix";
   buildImage = nix2containerPkgs.nix2container.buildImage;
+  wait-for-l1-and-l2-script = builtins.path {
+    name = "wait-for-l1-and-l2.sh";
+    path = ../ops/scripts/wait-for-l1-and-l2.sh;
+  };
+  deployer-script = builtins.path {
+    name = "deployer.sh";
+    path = ../ops/scripts/deployer.sh;
+  };
   wait-script = pkgs.stdenv.mkDerivation {
     name = "scripts";
     phases = [ "installPhase" ];
     installPhase = ''
       mkdir -p $out/scripts
       chmod +x $out/scripts
-      cp ${./..}/ops/scripts/wait-for-l1-and-l2.sh $out/scripts/
+      cp ${wait-for-l1-and-l2-script} $out/scripts/wait-for-l1-and-l2.sh
       substituteInPlace $out/scripts/wait-for-l1-and-l2.sh \
         --replace '/bin/bash' '${pkgs.bash}/bin/bash' \
         --replace 'curl' '${pkgs.curl}/bin/curl' \
@@ -21,8 +29,8 @@ let
     installPhase = ''
       mkdir -p $out/scripts
       chmod +x $out/scripts
-      cp ${./..}/ops/scripts/deployer.sh $out/scripts/
-      cp ${./..}/ops/scripts/wait-for-l1-and-l2.sh $out/scripts/
+      cp ${deployer-script} $out/scripts/deployer.sh
+      cp ${wait-for-l1-and-l2-script} $out/scripts/wait-for-l1-and-l2.sh
       substituteInPlace $out/scripts/deployer.sh \
         --replace '/bin/bash' '${pkgs.bash}/bin/bash' \
         --replace 'curl' '${pkgs.curl}/bin/curl'
@@ -77,7 +85,24 @@ rec {
     dtlVar = pkgs.runCommand "dtl-var" {} ''
       mkdir -p $out/opt/optimism/packages/data-transport-layer/state-dumps
     '';
-  in buildImage {
+    dtl-script-orig = builtins.path {
+      name = "dtl.sh";
+      path = ../ops/scripts/dtl.sh;
+    };
+    dtl-script = pkgs.stdenv.mkDerivation {
+      name = "scripts";
+      phases = [ "installPhase" ];
+      installPhase = ''
+        mkdir -p $out/scripts
+        chmod +x $out/scripts
+        cp ${dtl-script-orig} $out/scripts/dtl.sh
+        substituteInPlace $out/scripts/dtl.sh \
+          --replace '/bin/bash' '${pkgs.bash}/bin/bash' \
+          --replace 'exec node dist/src/services/run.js' \
+            'exec ${pkgs.nodejs-14_x}/bin/node ${bobapkgs.dtl-min}/dist/src/services/run.js'
+      '';
+  };
+  in pkgs.dockerTools.streamLayeredImage {
     name = "dtl";
     tag = tag;
     maxLayers = 125;
@@ -86,14 +111,16 @@ rec {
         name = "root"; paths = [
           pkgs.bashInteractive
           pkgs.coreutils
+          pkgs.curl
+          pkgs.jq
         ]; })
       #dtlVar
     ];
     config = {
       Env = [ "PATH=/bin/" ];
-      WorkingDir = "${bobapkgs.dtl-min}/";
+      WorkingDir = "${dtl-script}/scripts";
       EntryPoint = [
-        "${pkgs.nodejs}/bin/node"
+        "${pkgs.nodejs-14_x}/bin/node"
         "${bobapkgs.dtl-min}/dist/src/services/run.js"
       ];
     };
@@ -102,7 +129,7 @@ rec {
   deployer = let
     #optimism-contracts = bobapkgs."@eth-optimism/contracts";
     optimism-contracts = bobapkgs.contracts-min;
-  in buildImage {
+  in pkgs.dockerTools.streamLayeredImage {
     name = "deployer";
     tag = tag;
     contents = with pkgs; [
@@ -110,15 +137,19 @@ rec {
         name = "root"; paths = [
           pkgs.bashInteractive
           pkgs.coreutils
+          pkgs.curl
+          pkgs.python3
+          pkgs.jq
+          pkgs.git
         ]; })
     ];
     config = {
       Env = [ "PATH=/bin/:${optimism-contracts}/bin/:${optimism-contracts}/node_modules/.bin/:${scripts}/scripts/:${pkgs.yarn}/bin/" ];
-      WorkingDir = "${optimism-contracts}/contracts";
+      WorkingDir = "${optimism-contracts}/";
       Entrypoint = [
         "${pkgs.yarn}/bin/yarn"
         "--cwd"
-        "${optimism-contracts}/contracts"
+        "${optimism-contracts}/"
         "run"
         "deploy"
       ];
@@ -229,7 +260,7 @@ rec {
       WorkingDir = "${bobapkgs.oracle-min}/";
       EntryPoint = [
         "${scripts}/scripts/wait-for-l1-and-l2.sh"
-        "${pkgs.nodejs}/bin/node"
+        "${pkgs.nodejs-14_x}/bin/node"
         "${bobapkgs.oracle-min}/exec/run-gas-price-oracle.js"
       ];
     };
@@ -239,7 +270,7 @@ rec {
     tag = tag;
     config = {
       WorkingDir = "${bobapkgs.monitor-min}/monitor";
-      Env = [ "PATH=${pkgs.nodejs}/bin/:${pkgs.yarn}/bin/" ];
+      Env = [ "PATH=${pkgs.nodejs-14_x}/bin/:${pkgs.yarn}/bin/" ];
       EntryPoint = [
         "${pkgs.yarn}/bin/yarn"
         "start"
@@ -303,7 +334,7 @@ rec {
       config = {
         WorkingDir = "${bobapkgs.integration-tests-min}/";
         Env = [
-          "PATH=${pkgs.nodejs}/bin/:${pkgs.yarn}/bin/:${bobapkgs."@eth-optimism/hardhat-node"}/bin/:${script}/scripts/"
+          "PATH=${pkgs.nodejs-14_x}/bin/:${pkgs.yarn}/bin/:${bobapkgs."@eth-optimism/hardhat-node"}/bin/:${script}/scripts/"
         ];
         EntryPoint = [
           "${pkgs.yarn}/bin/yarn"
