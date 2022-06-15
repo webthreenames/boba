@@ -604,7 +604,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 
 	// Sanity and depth checks
 	if isTuring2 || isGetRand2 {
-		log.Debug("TURING REQUEST START", "input", input, "len(evm.Context.Turing)", len(evm.Context.Turing))
+		log.Debug("TURING REQUEST START", "input", hexutil.Bytes(input), "len(evm.Context.Turing)", len(evm.Context.Turing))
 		// Check 1. can only run Turing once anywhere in the call stack
 		if evm.Context.TuringDepth > 1 {
 			log.Error("TURING ERROR: DEPTH > 1", "evm.Context.TuringDepth", evm.Context.TuringDepth)

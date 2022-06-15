@@ -11,6 +11,7 @@ import hre from 'hardhat'
 const cfg = hre.network.config
 const hPort = 1235 // Port for local HTTP server
 var urlStr
+var urlStr2
 import { getContractFactory } from '@eth-optimism/contracts'
 const gasOverride =  {
   gasLimit: 3000000 //3,000,000
@@ -63,20 +64,37 @@ if (hre.network.name === "boba_local") {
             var jBody = JSON.parse(body)
 
             let v1 = jBody.params[0]
+            var result
 
-            if(v1.length > 194) {
-              //chop off the prefix introduced by the real call
-              v1 = '0x' + v1.slice(66)
+            if (req.url === "/mulF") {
+
+              if(v1.length > 194) {
+                //chop off the prefix introduced by the real call
+                v1 = '0x' + v1.slice(66)
+              }
+
+              const args = abiDecoder.decodeParameter('string', v1)
+
+              let volume = (4/3) * 3.14159 * Math.pow(parseFloat(args['0']),3)
+
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              console.log("      (HTTP) SPHERE Returning off-chain response:", args, "->", volume * 100)
+
+              result = abiDecoder.encodeParameters(['uint256','uint256'], [32, Math.round(volume*100)])
+            } else {
+              expect(req.url).to.equal("/mulA")
+
+              v1 = v1.slice(66,) // Strip the "0x" + the length field
+              const args = abiDecoder.decodeParameters(['uint256','uint256'], v1)
+
+              let ary = []
+              for(var i=0; i<args[0]; i++)
+              {
+                ary.push(args[1])
+              }
+              result = abiDecoder.encodeParameters(['uint256[]'], [ary])
+              result = "0x00000000000000000000000000000000000000000000000000000000000000a0" + result.slice(2,)
             }
-
-            const args = abiDecoder.decodeParameter('string', v1)
-
-            let volume = (4/3) * 3.14159 * Math.pow(parseFloat(args['0']),3)
-
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            console.log("      (HTTP) SPHERE Returning off-chain response:", args, "->", volume * 100)
-
-            let result = abiDecoder.encodeParameters(['uint256','uint256'], [32, Math.round(volume*100)])
 
             var jResp2 = {
               "jsonrpc": "2.0",
@@ -97,7 +115,9 @@ if (hre.network.name === "boba_local") {
       }).listen(hPort)
 
       // Get a non-localhost IP address of the local machine, as the target for the off-chain request
-      urlStr = "http://" + ip.address() + ":" + hPort
+      const urlBase = "http://" + ip.address() + ":" + hPort
+      urlStr = urlBase + "/mulF"
+      urlStr2 = urlBase + "/mulA"
 
       console.log("    Created local HTTP server at", urlStr)
 
@@ -211,13 +231,24 @@ if (hre.network.name === "boba_local") {
       const res = await tr.wait()
       expect(res).to.be.ok
 
-      const rawData = res.events[0].data
-      const result = parseInt(rawData.slice(-64), 16) / 100
+      const ev = res.events.find(e => e.event === "MultFloatNumbers")
+      const result = parseInt(ev.data.slice(-64), 16) / 100
       expect(result.toFixed(5)).to.equal('33.51000')
     })
 
+    it("should handle arrays", async() => {
+      await hello.estimateGas.multArray(urlStr2, 3, 4, gasOverride)
+      let tr = await hello.multArray(urlStr2, 3, 4, gasOverride)
+      const res = await tr.wait()
+      expect(res).to.be.ok
+
+      const ev = res.events.find(e => e.event === "MultArray")
+      const result = parseInt(ev.data.slice(-64), 16)
+      expect(result).to.equal(12)
+    })
+
     it("final balance", async () => {
-      const postBalance =await turingCredit.prepaidBalance(
+      const postBalance = await turingCredit.prepaidBalance(
         helper.address
       )
       //expect(postBalance).to.equal( utils.parseEther('0.5'))
