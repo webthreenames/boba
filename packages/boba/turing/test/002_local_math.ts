@@ -67,12 +67,6 @@ if (hre.network.name === "boba_local") {
             var result
 
             if (req.url === "/mulF") {
-
-              if(v1.length > 194) {
-                //chop off the prefix introduced by the real call
-                v1 = '0x' + v1.slice(66)
-              }
-
               const args = abiDecoder.decodeParameter('string', v1)
 
               let volume = (4/3) * 3.14159 * Math.pow(parseFloat(args['0']),3)
@@ -80,11 +74,10 @@ if (hre.network.name === "boba_local") {
               res.writeHead(200, { 'Content-Type': 'application/json' });
               console.log("      (HTTP) SPHERE Returning off-chain response:", args, "->", volume * 100)
 
-              result = abiDecoder.encodeParameters(['uint256','uint256'], [32, Math.round(volume*100)])
+              result = abiDecoder.encodeParameters(['uint256'], [Math.round(volume*100)])
             } else {
               expect(req.url).to.equal("/mulA")
 
-              v1 = v1.slice(66,) // Strip the "0x" + the length field
               const args = abiDecoder.decodeParameters(['uint256','uint256'], v1)
 
               let ary = []
@@ -93,7 +86,6 @@ if (hre.network.name === "boba_local") {
                 ary.push(args[1])
               }
               result = abiDecoder.encodeParameters(['uint256[]'], [ary])
-              result = "0x00000000000000000000000000000000000000000000000000000000000000a0" + result.slice(2,)
             }
 
             var jResp2 = {
@@ -182,8 +174,8 @@ if (hre.network.name === "boba_local") {
       }).then(
         res => res.json()
       ).then(json => {
-          let result = abiDecoder.decodeParameters(['uint256','uint256'], json.result)
-          expect(Number(result[1])).to.equal(3351)
+          let result = abiDecoder.decodeParameters(['uint256'], json.result)
+          expect(Number(result[0])).to.equal(3351)
         }
       )
     })

@@ -460,6 +460,22 @@ func (evm *EVM) bobaTuringCall(input []byte, caller common.Address, mayBlock boo
 	// At this point, we have the API endpoint and the payload that needs to go there...
 	payload := restHexUtil[startIDXpayload:] //using hex here since that makes it easy to get the string
 
+	// We want the body of the payload without the ABI-encoding length prefix
+	if len(payload) < 64 || (len(payload)%32) != 0 {
+		log.Error("TURING bad request payload", "len", len(payload))
+		retError[35] = 11 // Overloading the "calldata too short" for now, could assign a new error
+		return retError, 11
+	}
+
+	pLen := new(big.Int).SetBytes(payload[:32])
+	payload = payload[32:]
+
+	if pLen.Cmp(big.NewInt(int64(len(payload)))) != 0 {
+		log.Error("TURING bad request payload (length mismatch)", "claimed", pLen, "actual", len(payload))
+		retError[35] = 11
+		return retError, 11
+	}
+
 	log.Debug("TURING bobaTuringCall:Have URL and payload",
 		"url", url,
 		"payload", payload)
@@ -486,12 +502,12 @@ func (evm *EVM) bobaTuringCall(input []byte, caller common.Address, mayBlock boo
 			retError[35] = 14 // Client Response Decode Error
 			return retError, 14
 		}
-                // Removed the "retError 18: Response too big" check. It's redundant
-                // as we have already checked and decoded the hex-encoded representation.
-                // Adjust the "turingMaxLen" constant as needed. The main rationale for a
-                // length limit is that we (system operator) must pay to store the calldata
-                // into L1 so an excessively large response might not be covered by the 
-                // fees charged to the user.
+		// Removed the "retError 18: Response too big" check. It's redundant
+		// as we have already checked and decoded the hex-encoded representation.
+		// Adjust the "turingMaxLen" constant as needed. The main rationale for a
+		// length limit is that we (system operator) must pay to store the calldata
+		// into L1 so an excessively large response might not be covered by the
+		// fees charged to the user.
 
 		t := time.Now()
 		elapsed := t.Sub(startT)
@@ -512,7 +528,12 @@ func (evm *EVM) bobaTuringCall(input []byte, caller common.Address, mayBlock boo
 	ret = make([]byte, startIDXpayload+4)
 	copy(ret, inputHexUtil[0:startIDXpayload+4]) // take the original input
 	ret[35] = 2                                  // change byte 3 + 32 = 35 (rType) to indicate a valid response
-	ret = append(ret, responseString...)         // and tack on the payload
+
+	rLen := big.NewInt(int64(len(responseString)))
+	lenStr := hexutil.MustDecode(fmt.Sprintf("0x%064x", rLen))
+
+	ret = append(ret, lenStr...)         // Prefix w. ABI-encoding length
+	ret = append(ret, responseString...) // and tack on the payload
 
 	log.Debug("TURING bobaTuringCall:Modified parameters",
 		"newValue", hexutil.Bytes(ret))
@@ -658,7 +679,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		ret, err = run(evm, contract, input, false)
 	}
 
-	log.Debug(prefix_str + " evm.go run", // Tagged as Regular or TURING
+	log.Debug(prefix_str+" evm.go run", // Tagged as Regular or TURING
 		"depth", evm.depth,
 		"contract", contract.CodeAddr,
 		"ret", hexutil.Bytes(ret),
