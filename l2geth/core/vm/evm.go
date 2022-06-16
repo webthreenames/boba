@@ -602,8 +602,11 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	// to be done, and then synthesizes a 'updated_input' calldata
 	var updated_input hexutil.Bytes
 
+	prefix_str := "Regular"
+
 	// Sanity and depth checks
 	if isTuring2 || isGetRand2 {
+		prefix_str = "TURING"
 		log.Debug("TURING REQUEST START", "input", hexutil.Bytes(input), "len(evm.Context.Turing)", len(evm.Context.Turing))
 		// Check 1. can only run Turing once anywhere in the call stack
 		if evm.Context.TuringDepth > 1 {
@@ -619,6 +622,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 			log.Error("TURING bobaTuringCall:Insufficient credit")
 			return nil, gas, ErrInsufficientBalance
 		}
+
 		if evm.Context.Sequencer && len(evm.Context.Turing) < 2 {
 			// This is the first run of Turing for this transaction
 			// We sometimes use a short evm.Context.Turing payload for debug purposes, hence the < 2.
@@ -634,7 +638,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 				updated_input = evm.bobaTuringRandom(input, caller.Address())
 			} // there is no other option
 			ret, err = run(evm, contract, updated_input, false)
-			log.Debug("TURING NEW CALL", "updated_input", updated_input)
+			log.Debug("TURING NEW CALL", "updated_input", updated_input, "ret", hexutil.Bytes(ret), "err", err)
 			// and now, provide the updated_input to the context so that the data can be sent to L1 and the CTC
 			evm.Context.Turing = updated_input
 			evm.Context.TuringDepth++
@@ -654,7 +658,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		ret, err = run(evm, contract, input, false)
 	}
 
-	log.Debug("TURING evm.go run",
+	log.Debug(prefix_str + " evm.go run", // Tagged as Regular or TURING
 		"depth", evm.depth,
 		"contract", contract.CodeAddr,
 		"ret", hexutil.Bytes(ret),
